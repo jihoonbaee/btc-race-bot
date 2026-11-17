@@ -5,7 +5,7 @@ let hasHeld = false;
 let peak = 0n;
 
 await runBars({
-  onBatch(state): OrderInput[] {
+  onBatch(state, batch): OrderInput[] {
     // Warm-up must not change either the entry latch or the trailing peak.
     if (state.warmingUp) return [];
 
@@ -17,6 +17,12 @@ await runBars({
       // The SDK retains the latest close across missing bars; null means none yet.
       if (close === null) return [];
       peak = peak > close ? peak : close;
+      for (const fill of batch.fills) {
+        if (fill.symbol === 'CBBTC' && fill.side === 'buy' && fill.status === 'filled') {
+          const price = BigInt(fill.price);
+          peak = peak > price ? peak : price;
+        }
+      }
       if (close * 100n < peak * 97n) {
         return [{ side: 'sell', symbol: 'CBBTC', qty: holding.qty, max_slippage_bps: 1000 }];
       }
